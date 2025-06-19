@@ -1,20 +1,41 @@
-from flask import Flask
+from flask import Flask, request, render_template, jsonify
 import joblib
+import pandas as pd
+import logging
 
 app = Flask(__name__)
 
-# Cargar el modelo entrenado
-modelo = joblib.load('modelo.pkl')
+# Configura logging
+logging.basicConfig(level=logging.INFO)
+
+# Carga el modelo
+model = joblib.load("modelo.pkl")
 
 @app.route('/')
-def inicio():
-    return "¡Clasificador activo! Visita /predecir para ver una predicción."
+def home():
+    return render_template("formulario.html")
 
-@app.route('/predecir')
-def predecir():
-    # Usamos un ejemplo de entrada [0, 0]
-    resultado = modelo.predict([[0, 0]])
-    return f"La predicción del modelo para [0, 0] es: {resultado[0]}"
+@app.route('/predict', methods=["POST"])
+def predict():
+    try:
+        # Asegúrate de que los nombres coincidan con el formulario
+        abdomen = float(request.form.get('abdomen'))
+        antena = float(request.form.get('antena'))
+        
+        # Crea DataFrame con los nombres EXACTOS que usaste al entrenar
+        data_df = pd.DataFrame([[abdomen, antena]], 
+                             columns=['abdomen', 'antena'])  # Verifica estos nombres
+        
+        # Realiza predicción
+        prediction = model.predict(data_df)
+        
+        return render_template("formulario.html", 
+                            resultado=f"El insecto es: {prediction[0]}")
+    
+    except Exception as e:
+        logging.error(f"Error: {str(e)}")
+        return render_template("formulario.html", 
+                            resultado=f"Error: {str(e)}"), 400
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
